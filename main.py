@@ -9,174 +9,512 @@ from dash.dependencies import Input, Output
 import talib
 
 app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN], title='Stock Market View', update_title='Loading...')
+
 server = app.server
 
-options = []
-optdf = pd.read_csv('ticksymbols.csv', encoding='latin-1')
-optdf.set_index('Ticker', inplace=True)
 
-for index, row in optdf.iterrows():
-    optdict = {'label': str(row['Name']), 'value': index}
-    options.append(optdict)
+def load_ticks():
+    options = []
+    optdf = pd.read_csv('ticksymbols.csv', encoding='latin-1')
+    optdf.set_index('Ticker', inplace=True)
 
-app.layout = html.Div([dbc.Row(dbc.Col(html.H1("Stock Market View"),
-                                       width={'size': 5, 'offset': 4}
-                                       ),
-                               ),
-                       dbc.Row(dbc.Col(dcc.Dropdown(id='tickinput',
-                                                    options=options,
-                                                    placeholder='Stock',
-                                                    value='^NSEI',
-                                                    multi=False,
-                                                    searchable=True,
-                                                    clearable=False,
-                                                    optionHeight=45,
-                                                    persistence=True,
-                                                    persistence_type='session',
-                                                    ),
-                                       width={'size': 4, 'offset': 0}
-                                       )
-                               ),
-                       dbc.Row([dbc.Col(html.Div("Period"),
-                                        width={'size': 2, 'offset': 0},
-                                        style={'marginBottom': 0, 'marginTop': 10}
-                                        ),
-                                dbc.Col(html.Div("Interval"),
-                                        width={'size': 2, 'offset': 0},
-                                        style={'marginBottom': 0, 'marginTop': 10}
-                                        )
-
-                                ]),
-                       dbc.Row([dbc.Col(dcc.Dropdown(id='periodinput',
-                                                     options=[
-                                                         {'label': '15 minutes', 'value': '15m'},
-                                                         {'label': '1 day', 'value': '1d'},
-                                                         {'label': '5 days', 'value': '5d'},
-                                                         {'label': '1 month', 'value': '1mo'},
-                                                         {'label': '3 months', 'value': '3mo'},
-                                                         {'label': '6 months', 'value': '6mo'},
-                                                         {'label': 'YTD', 'value': 'ytd'},
-                                                         {'label': '1 year', 'value': '1y'},
-                                                         {'label': '5 years', 'value': '5y'},
-                                                         # {'label': '10 years', 'value': '10y'},
-                                                         {'label': 'MAX', 'value': 'max'}
-                                                     ],
-                                                     placeholder='Period',
-                                                     value='1y',
-                                                     optionHeight=30,
-                                                     searchable=True,
-                                                     clearable=False,
-                                                     # style={'width': "90%"},
-                                                     persistence=True,
-                                                     persistence_type='session'
-                                                     ),
-                                        width={'size': 2, 'offset': 0}
-                                        ),
-                                dbc.Col(dcc.Dropdown(id='intervalinput',
-                                                     options=[
-                                                         {'label': '1 minute', 'value': '1m'},
-                                                         {'label': '2 minutes', 'value': '2m'},
-                                                         {'label': '5 minutes', 'value': '5m'},
-                                                         {'label': '15 minutes', 'value': '15m'},
-                                                         # {'label': '30 minutes', 'value': '30m'},
-                                                         {'label': '1h', 'value': '60m'},
-                                                         # {'label': '90 minutes', 'value': '90m'},
-                                                         {'label': '1 day', 'value': '1d'},
-                                                         # {'label': '5 days', 'value': '5d'},
-                                                         # {'label': '1 week', 'value': '1wk'},
-                                                         # {'label': '1 month', 'value': '1mo'},
-                                                         # {'label': '3 months', 'value': '3mo'}
-                                                     ],
-                                                     placeholder='Interval',
-                                                     value='1d',
-                                                     optionHeight=30,
-                                                     searchable=True,
-                                                     clearable=False,
-                                                     persistence=True,
-                                                     persistence_type='session'
-                                                     ),
-                                        width={'size': 2, 'offset': 0}
-                                        ),
-                                dbc.Col(dcc.Dropdown(id='compare',
-                                                     options=options,
-                                                     placeholder='Compare',
-                                                     multi=True,
-                                                     searchable=True,
-                                                     clearable=True,
-                                                     optionHeight=45,
-                                                     persistence=True,
-                                                     persistence_type='session'
-                                                     ),
-                                        width={'size': 3, 'offset': 0}
-                                        ),
-                                dbc.Col(dcc.Dropdown(id='indicator_sel',
-                                                     options=[
-                                                         {'label': 'Bollinger Bands', 'value': 'bbands'},
-                                                         {'label': 'Exponential Moving Average', 'value': 'ema'},
-                                                         {'label': 'Ichimoku Cloud', 'value': 'ichi'},
-                                                         {'label': 'MovAvg50', 'value': 'mov50'},
-                                                         {'label': 'MovAvg200', 'value': 'mov200'},
-                                                         {'label': 'Parabolic SAR', 'value': 'sar'},
-                                                         {'label': 'Bullish Engulfing', 'value': 'bulleng'},
-                                                         {'label': 'Bearish Engulfing', 'value': 'beareng'}
-                                                     ],
-                                                     placeholder='Indicators',
-                                                     optionHeight=30,
-                                                     multi=True,
-                                                     searchable=True,
-                                                     clearable=True,
-                                                     persistence=True,
-                                                     persistence_type='session'
-                                                     ),
-                                        width={'size': 3, 'offset': 0}
-                                        )
-                                ]
-                               ),
-
-                       dbc.Row(dbc.Col(dcc.Graph(id='graph',
-                                                 config={'modeBarButtonsToAdd': ['drawline',
-                                                                                 'drawopenpath',
-                                                                                 'drawclosedpath',
-                                                                                 'drawcircle',
-                                                                                 'drawrect',
-                                                                                 'eraseshape'
-                                                                                 ],
-                                                         'scrollZoom': True,
-                                                         'displayModeBar': True,
-                                                         'editable': False
-                                                         }
-                                                 )
-                                       )
-                               ),
-                       dcc.Interval(
-                           id='interval-component',
-                           interval=30 * 1000,
-                           n_intervals=0
-                       ),
-                       dbc.Modal([
-                           dbc.ModalHeader(html.H3("Welcome to Stock Market View!!")),
-                           dbc.ModalBody("This application can be used to visualize NSE and BSE stocks with indicators and "
-                                         "to compare different stocks.")
-                       ],
-                           is_open=True)
-                       ])
+    for index, row in optdf.iterrows():
+        optdict = {'label': str(row['Name']) + '-\t' + str(index), 'value': index}
+        options.append(optdict)
+    return options
 
 
-@app.callback(
-    Output(component_id='intervalinput', component_property='value'),
-    Input(component_id='periodinput', component_property='value')
-)
-def callback2(p):
+def load_data(period, interval, tick, compare=None):
+    ticker = yf.Ticker(tick)
+    df = ticker.history(period=period, interval=interval)
+    df = df.dropna()
+    if compare is not None and compare != []:
+        return df - df['Close'].iloc[0]
+    else:
+        return df
+
+
+def period_int(p):
     if p == '15m' or p == '1d':
         return '1m'
     elif p == '5d':
         return '5m'
-    else:
+    elif p == '1mo':
+        return '30m'
+    elif p == '3mo':
+        return '60m'
+    elif p == '6mo' or p == 'ytd' or p == '1y':
         return '1d'
+    elif p == '5y' or p == '10y':
+        return '1wk'
+    elif p == 'max':
+        return '1mo'
+
+
+def rangebreak(fig, period, interval):
+    if period != '1d':
+        if interval == '1d':
+            fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
+        elif interval == '60m' or interval == '30m' or interval == '15m' or interval == '5m' or interval == '2m' or interval == '1m':
+            fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"]), dict(bounds=[15.5, 9], pattern='hour')])
+    return fig
+
+
+app.layout = html.Div([dcc.Tabs([
+    dcc.Tab(label='Single Time Frame', children=[dbc.Row([dbc.Col(dcc.Dropdown(id='tickinput',
+                                                                               options=load_ticks(),
+                                                                               placeholder='Stock',
+                                                                               value='^NSEI',
+                                                                               multi=False,
+                                                                               searchable=True,
+                                                                               clearable=False,
+                                                                               optionHeight=45,
+                                                                               persistence=True,
+                                                                               persistence_type='session',
+                                                                               style={'background-color': '#F0F8FF'}
+                                                                               ),
+                                                                  width={'size': 3, 'offset': 0}
+                                                                  ),
+                                                          dbc.Col(dcc.Dropdown(id='periodinput',
+                                                                               options=[
+                                                                                   {'label': 'Period', 'value': 'p',
+                                                                                    'disabled': True},
+                                                                                   {'label': '15min', 'value': '15m'},
+                                                                                   {'label': '1day', 'value': '1d'},
+                                                                                   {'label': '5day', 'value': '5d'},
+                                                                                   {'label': '1mon', 'value': '1mo'},
+                                                                                   {'label': '3mon', 'value': '3mo'},
+                                                                                   {'label': '6mon', 'value': '6mo'},
+                                                                                   {'label': 'YTD', 'value': 'ytd'},
+                                                                                   {'label': '1Y', 'value': '1y'},
+                                                                                   {'label': '5Y', 'value': '5y'},
+                                                                                   {'label': '10Y', 'value': '10y'},
+                                                                                   {'label': 'All', 'value': 'max'}
+                                                                               ],
+                                                                               placeholder='Period',
+                                                                               value='1y',
+                                                                               optionHeight=30,
+                                                                               searchable=True,
+                                                                               clearable=False,
+                                                                               persistence=True,
+                                                                               persistence_type='session',
+                                                                               style={'background-color': '#F0F8FF'}
+                                                                               ),
+                                                                  width={'size': 1, 'offset': 0}
+                                                                  ),
+                                                          dbc.Col(dcc.Dropdown(id='intervalinput',
+                                                                               options=[
+                                                                                   {'label': 'Interval', 'value': 'i',
+                                                                                    'disabled': True},
+                                                                                   {'label': '1min', 'value': '1m'},
+                                                                                   {'label': '2min', 'value': '2m'},
+                                                                                   {'label': '5min', 'value': '5m'},
+                                                                                   {'label': '15min', 'value': '15m'},
+                                                                                   {'label': '30min', 'value': '30m'},
+                                                                                   {'label': '1h', 'value': '60m'},
+                                                                                   # {'label': '90min', 'value': '90m'},
+                                                                                   {'label': 'D', 'value': '1d'},
+                                                                                   # {'label': '5D', 'value': '5d'},
+                                                                                   {'label': 'W', 'value': '1wk'},
+                                                                                   {'label': 'M', 'value': '1mo'},
+                                                                                   {'label': '3M', 'value': '3mo'}
+                                                                               ],
+                                                                               placeholder='Interval',
+                                                                               value='1d',
+                                                                               optionHeight=30,
+                                                                               searchable=True,
+                                                                               clearable=False,
+                                                                               persistence=True,
+                                                                               persistence_type='session',
+                                                                               style={'background-color': '#F0F8FF'}
+                                                                               ),
+                                                                  width={'size': 1, 'offset': 0},
+                                                                  ),
+                                                          dbc.Col(dcc.Dropdown(id='compare',
+                                                                               options=load_ticks(),
+                                                                               placeholder='Compare',
+                                                                               multi=True,
+                                                                               searchable=True,
+                                                                               clearable=True,
+                                                                               optionHeight=45,
+                                                                               persistence=True,
+                                                                               persistence_type='session',
+                                                                               style={'background-color': '#F0F8FF'}
+                                                                               ),
+                                                                  width={'size': 3, 'offset': 0},
+                                                                  style={'display': 'inline-block'},
+                                                                  ),
+                                                          dbc.Col(dcc.Dropdown(id='indicator_sel',
+                                                                               options=[
+                                                                                   {'label': 'Bollinger Bands',
+                                                                                    'value': 'bbands'},
+                                                                                   {'label': 'Exp MovAvg',
+                                                                                    'value': 'ema'},
+                                                                                   {'label': 'Ichimoku Cloud',
+                                                                                    'value': 'ichi'},
+                                                                                   {'label': 'MovAvg20',
+                                                                                    'value': 'mov20'},
+                                                                                   {'label': 'MovAvg50',
+                                                                                    'value': 'mov50'},
+                                                                                   {'label': 'MovAvg100',
+                                                                                    'value': 'mov100'},
+                                                                                   {'label': 'MovAvg200',
+                                                                                    'value': 'mov200'},
+                                                                                   {'label': 'Parabolic SAR',
+                                                                                    'value': 'sar'},
+                                                                                   {'label': 'Bullish Engulfing',
+                                                                                    'value': 'bulleng'},
+                                                                                   {'label': 'Bearish Engulfing',
+                                                                                    'value': 'beareng'}
+                                                                               ],
+                                                                               placeholder='Indicators',
+                                                                               optionHeight=35,
+                                                                               multi=True,
+                                                                               searchable=True,
+                                                                               clearable=True,
+                                                                               persistence=True,
+                                                                               persistence_type='session',
+                                                                               style={'background-color': '#F0F8FF'}
+                                                                               ),
+                                                                  width={'size': 3, 'offset': 0}
+                                                                  )
+                                                          ],
+                                                         style={'marginBottom': 0, 'marginTop': 10}
+                                                         ),
+                                                 dbc.Row(dbc.Col(html.Div(id='displayhover', children='O-\tH-\tL-\tC-'),
+                                                                 style={'marginBottom': 0, 'marginTop': 5,
+                                                                        'fontSize': 20},
+                                                                 )),
+                                                 dbc.Row(dbc.Col(dcc.Graph(id='graph',
+                                                                           config={'modeBarButtonsToAdd': ['drawline',
+                                                                                                           'drawopenpath',
+                                                                                                           'drawclosedpath',
+                                                                                                           'drawcircle',
+                                                                                                           'drawrect',
+                                                                                                           'eraseshape'
+                                                                                                           ],
+                                                                                   'modeBarButtonsToRemove': ['lasso2d',
+                                                                                                              'select2d',
+                                                                                                              'hoverClosestCartesian',
+                                                                                                              'hoverCompareCartesian'],
+                                                                                   'scrollZoom': True,
+                                                                                   'displayModeBar': True,
+                                                                                   'editable': False,
+                                                                                   'displaylogo': False
+                                                                                   }
+                                                                           ),
+                                                                 width={'size': 12, 'offset': 0}
+                                                                 )
+                                                         ),
+                                                 dcc.Interval(
+                                                     id='interval-component',
+                                                     interval=30 * 1000,
+                                                     n_intervals=0
+                                                 ),
+                                                 dbc.Modal([
+                                                     dbc.ModalHeader(html.H3("Welcome to Stock Market View!!")),
+                                                     dbc.ModalBody(
+                                                         "This application can be used to visualize NSE and BSE stocks with indicators and "
+                                                         "to compare different stocks.")
+                                                 ],
+                                                     is_open=True)
+                                                 ],
+            style={'height': '35px',
+                   'padding': '6px'},
+            selected_style={'height': '35px',
+                            'padding': '6px'}
+            ),
+    dcc.Tab(label='Multiple Time Frames', children=[dbc.Row(dbc.Col(dcc.Dropdown(id='tab2_tickinput',
+                                                                                 options=load_ticks(),
+                                                                                 placeholder='Stock',
+                                                                                 value='^NSEI',
+                                                                                 multi=False,
+                                                                                 searchable=True,
+                                                                                 clearable=False,
+                                                                                 optionHeight=45,
+                                                                                 persistence=True,
+                                                                                 persistence_type='session',
+                                                                                 style={'background-color': '#F0F8FF'}
+                                                                                 ),
+                                                                    width={'size': 4, 'offset': 4}
+                                                                    ),
+                                                            style={'marginBottom': 0, 'marginTop': 5}
+                                                            ),
+                                                    dbc.Row([dbc.Col(dcc.Dropdown(id='tab2-periodinput-A',
+                                                                                  options=[
+                                                                                      {'label': 'Period', 'value': 'p',
+                                                                                       'disabled': True},
+                                                                                      {'label': '15min',
+                                                                                       'value': '15m'},
+                                                                                      {'label': '1day', 'value': '1d'},
+                                                                                      {'label': '5day', 'value': '5d'},
+                                                                                      {'label': '1mon', 'value': '1mo'},
+                                                                                      {'label': '3mon', 'value': '3mo'},
+                                                                                      {'label': '6mon', 'value': '6mo'},
+                                                                                      {'label': 'YTD', 'value': 'ytd'},
+                                                                                      {'label': '1Y', 'value': '1y'},
+                                                                                      {'label': '5Y', 'value': '5y'},
+                                                                                      {'label': '10Y', 'value': '10y'},
+                                                                                      {'label': 'All', 'value': 'max'}
+                                                                                  ],
+                                                                                  placeholder='Period',
+                                                                                  value='1d',
+                                                                                  optionHeight=30,
+                                                                                  searchable=True,
+                                                                                  clearable=False,
+                                                                                  persistence=True,
+                                                                                  persistence_type='session',
+                                                                                  style={'background-color': '#F0F8FF'}
+                                                                                  ),
+                                                                     width={'size': 1, 'offset': 2}
+                                                                     ),
+                                                             dbc.Col(dcc.Dropdown(id='tab2-intervalinput-A',
+                                                                                  options=[
+                                                                                      {'label': 'Interval',
+                                                                                       'value': 'i',
+                                                                                       'disabled': True},
+                                                                                      {'label': '1min', 'value': '1m'},
+                                                                                      {'label': '2min', 'value': '2m'},
+                                                                                      {'label': '5min', 'value': '5m'},
+                                                                                      {'label': '15min',
+                                                                                       'value': '15m'},
+                                                                                      {'label': '30min',
+                                                                                       'value': '30m'},
+                                                                                      {'label': '1h', 'value': '60m'},
+                                                                                      # {'label': '90min', 'value': '90m'},
+                                                                                      {'label': 'D', 'value': '1d'},
+                                                                                      # {'label': '5D', 'value': '5d'},
+                                                                                      {'label': 'W', 'value': '1wk'},
+                                                                                      {'label': 'M', 'value': '1mo'},
+                                                                                      {'label': '3M', 'value': '3mo'}
+                                                                                  ],
+                                                                                  placeholder='Interval',
+                                                                                  value='1m',
+                                                                                  optionHeight=30,
+                                                                                  searchable=True,
+                                                                                  clearable=False,
+                                                                                  persistence=True,
+                                                                                  persistence_type='session',
+                                                                                  style={'background-color': '#F0F8FF'}
+                                                                                  ),
+                                                                     width={'size': 1, 'offset': 0},
+                                                                     ),
+                                                             dbc.Col(dcc.Dropdown(id='tab2-periodinput-B',
+                                                                                  options=[
+                                                                                      {'label': 'Period', 'value': 'p',
+                                                                                       'disabled': True},
+                                                                                      {'label': '15min',
+                                                                                       'value': '15m'},
+                                                                                      {'label': '1day', 'value': '1d'},
+                                                                                      {'label': '5day', 'value': '5d'},
+                                                                                      {'label': '1mon', 'value': '1mo'},
+                                                                                      {'label': '3mon', 'value': '3mo'},
+                                                                                      {'label': '6mon', 'value': '6mo'},
+                                                                                      {'label': 'YTD', 'value': 'ytd'},
+                                                                                      {'label': '1Y', 'value': '1y'},
+                                                                                      {'label': '5Y', 'value': '5y'},
+                                                                                      {'label': '10Y', 'value': '10y'},
+                                                                                      {'label': 'All', 'value': 'max'}
+                                                                                  ],
+                                                                                  placeholder='Period',
+                                                                                  value='1y',
+                                                                                  optionHeight=30,
+                                                                                  searchable=True,
+                                                                                  clearable=False,
+                                                                                  persistence=True,
+                                                                                  persistence_type='session',
+                                                                                  style={'background-color': '#F0F8FF'}
+                                                                                  ),
+                                                                     width={'size': 1, 'offset': 4}
+                                                                     ),
+                                                             dbc.Col(dcc.Dropdown(id='tab2-intervalinput-B',
+                                                                                  options=[
+                                                                                      {'label': 'Interval',
+                                                                                       'value': 'i',
+                                                                                       'disabled': True},
+                                                                                      {'label': '1min', 'value': '1m'},
+                                                                                      {'label': '2min', 'value': '2m'},
+                                                                                      {'label': '5min', 'value': '5m'},
+                                                                                      {'label': '15min',
+                                                                                       'value': '15m'},
+                                                                                      {'label': '30min',
+                                                                                       'value': '30m'},
+                                                                                      {'label': '1h', 'value': '60m'},
+                                                                                      # {'label': '90min', 'value': '90m'},
+                                                                                      {'label': 'D', 'value': '1d'},
+                                                                                      # {'label': '5D', 'value': '5d'},
+                                                                                      {'label': 'W', 'value': '1wk'},
+                                                                                      {'label': 'M', 'value': '1mo'},
+                                                                                      {'label': '3M', 'value': '3mo'}
+                                                                                  ],
+                                                                                  placeholder='Interval',
+                                                                                  value='1d',
+                                                                                  optionHeight=30,
+                                                                                  searchable=True,
+                                                                                  clearable=False,
+                                                                                  persistence=True,
+                                                                                  persistence_type='session',
+                                                                                  style={'background-color': '#F0F8FF'}
+                                                                                  ),
+                                                                     width={'size': 1, 'offset': 0},
+                                                                     )
+                                                             ],
+                                                            style={'marginBottom': 0, 'marginTop': 10}
+                                                            ),
+                                                    dbc.Row([dbc.Col(dcc.Graph(id='tab2-graph-A',
+                                                                               config={
+                                                                                   'modeBarButtonsToAdd': ['drawline',
+                                                                                                           'drawopenpath',
+                                                                                                           'drawclosedpath',
+                                                                                                           'drawcircle',
+                                                                                                           'drawrect',
+                                                                                                           'eraseshape'
+                                                                                                           ],
+                                                                                   'modeBarButtonsToRemove': ['lasso2d',
+                                                                                                              'autoScale2d',
+                                                                                                              'select2d',
+                                                                                                              'hoverClosestCartesian',
+                                                                                                              'hoverCompareCartesian',
+                                                                                                              'toggleSpikelines'],
+                                                                                   'scrollZoom': True,
+                                                                                   # 'displayModeBar': True,
+                                                                                   'editable': False,
+                                                                                   'displaylogo': False
+                                                                                   }
+                                                                               ),
+                                                                     width={'size': 6, 'offset': 0}
+                                                                     ),
+                                                             # dbc.Col(html.Hr(style={'width': '100px', 'height': '2px', 'display': 'inline-block'}),
+                                                             #         width={'size': 1, 'offset': 0}
+                                                             #         ),
+                                                             dbc.Col(dcc.Graph(id='tab2-graph-B',
+                                                                               config={
+                                                                                   'modeBarButtonsToAdd': ['drawline',
+                                                                                                           'drawopenpath',
+                                                                                                           'drawclosedpath',
+                                                                                                           'drawcircle',
+                                                                                                           'drawrect',
+                                                                                                           'eraseshape'
+                                                                                                           ],
+                                                                                   'modeBarButtonsToRemove': ['lasso2d',
+                                                                                                              'autoScale2d',
+                                                                                                              'select2d',
+                                                                                                              'hoverClosestCartesian',
+                                                                                                              'hoverCompareCartesian',
+                                                                                                              'toggleSpikelines'],
+                                                                                   'scrollZoom': True,
+                                                                                   # 'displayModeBar': True,
+                                                                                   'editable': False,
+                                                                                   'displaylogo': False
+                                                                                   }
+                                                                               ),
+                                                                     width={'size': 6, 'offset': 0}
+                                                                     )
+                                                             ]),
+                                                    # html.Hr(),
+                                                    dbc.Row([dbc.Col(dcc.Dropdown(id='tab2-periodinput-C',
+                                                                                  options=[
+                                                                                      {'label': 'Period', 'value': 'p',
+                                                                                       'disabled': True},
+                                                                                      {'label': '15min',
+                                                                                       'value': '15m'},
+                                                                                      {'label': '1day', 'value': '1d'},
+                                                                                      {'label': '5day', 'value': '5d'},
+                                                                                      {'label': '1mon', 'value': '1mo'},
+                                                                                      {'label': '3mon', 'value': '3mo'},
+                                                                                      {'label': '6mon', 'value': '6mo'},
+                                                                                      {'label': 'YTD', 'value': 'ytd'},
+                                                                                      {'label': '1Y', 'value': '1y'},
+                                                                                      {'label': '5Y', 'value': '5y'},
+                                                                                      {'label': '10Y', 'value': '10y'},
+                                                                                      {'label': 'All', 'value': 'max'}
+                                                                                  ],
+                                                                                  placeholder='Period',
+                                                                                  value='10y',
+                                                                                  optionHeight=30,
+                                                                                  searchable=True,
+                                                                                  clearable=False,
+                                                                                  persistence=True,
+                                                                                  persistence_type='session',
+                                                                                  style={'background-color': '#F0F8FF'}
+                                                                                  ),
+                                                                     width={'size': 1, 'offset': 5}
+                                                                     ),
+                                                             dbc.Col(dcc.Dropdown(id='tab2-intervalinput-C',
+                                                                                  options=[
+                                                                                      {'label': 'Interval',
+                                                                                       'value': 'i',
+                                                                                       'disabled': True},
+                                                                                      {'label': '1min', 'value': '1m'},
+                                                                                      {'label': '2min', 'value': '2m'},
+                                                                                      {'label': '5min', 'value': '5m'},
+                                                                                      {'label': '15min',
+                                                                                       'value': '15m'},
+                                                                                      {'label': '30min',
+                                                                                       'value': '30m'},
+                                                                                      {'label': '1h', 'value': '60m'},
+                                                                                      # {'label': '90min', 'value': '90m'},
+                                                                                      {'label': 'D', 'value': '1d'},
+                                                                                      # {'label': '5D', 'value': '5d'},
+                                                                                      {'label': 'W', 'value': '1wk'},
+                                                                                      {'label': 'M', 'value': '1mo'},
+                                                                                      {'label': '3M', 'value': '3mo'}
+                                                                                  ],
+                                                                                  placeholder='Interval',
+                                                                                  value='1wk',
+                                                                                  optionHeight=30,
+                                                                                  searchable=True,
+                                                                                  clearable=False,
+                                                                                  persistence=True,
+                                                                                  persistence_type='session',
+                                                                                  style={'background-color': '#F0F8FF'}
+                                                                                  ),
+                                                                     width={'size': 1, 'offset': 0},
+                                                                     )
+                                                             ]),
+                                                    dbc.Row(dbc.Col(dcc.Graph(id='tab2-graph-C',
+                                                                              config={
+                                                                                  'modeBarButtonsToAdd': ['drawline',
+                                                                                                          'drawopenpath',
+                                                                                                          'drawclosedpath',
+                                                                                                          'drawcircle',
+                                                                                                          'drawrect',
+                                                                                                          'eraseshape'
+                                                                                                          ],
+                                                                                  'modeBarButtonsToRemove': ['lasso2d',
+                                                                                                             'autoScale2d',
+                                                                                                             'select2d',
+                                                                                                             'hoverClosestCartesian',
+                                                                                                             'hoverCompareCartesian',
+                                                                                                             'toggleSpikelines'],
+                                                                                  'scrollZoom': True,
+                                                                                  # 'displayModeBar': True,
+                                                                                  'editable': False,
+                                                                                  'displaylogo': False
+                                                                                  }
+                                                                              ),
+                                                                    width={'size': 12, 'offset': 0}
+                                                                    ),
+                                                            ),
+                                                    dcc.Interval(id='tab2-interval-component',
+                                                                 interval=30 * 1000,
+                                                                 n_intervals=0
+                                                                 ),
+                                                    ],
+            style={'height': '35px',
+                   'padding': '6px'},
+            selected_style={'height': '35px',
+                            'padding': '6px'})],
+    style={'height': '35px'},
+    colors={
+        "border": "white",
+        "primary": "#1da1f2",
+        "background": "#F0F8FF"
+    }
+)])
 
 
 @app.callback(
-
     Output(component_id='graph', component_property='figure'),
     [Input(component_id='tickinput', component_property='value'),
      Input(component_id='periodinput', component_property='value'),
@@ -184,24 +522,28 @@ def callback2(p):
      Input(component_id='interval-component', component_property='n_intervals'),
      Input(component_id='indicator_sel', component_property='value'),
      Input(component_id='compare', component_property='value')],
-    prevent_initial_call=True
+    # prevent_initial_call=True
 )
 def callback1(tick, period, interval, n, indicator_sel, compare):
-    ticker = yf.Ticker(tick)
-    df = ticker.history(period=period, interval=interval)
-    df = df.dropna()
-    df['Engulfing'] = talib.CDLENGULFING(df['Open'], df['High'], df['Low'], df['Close'])
+    global df
+    df = load_data(period, interval, tick, compare)
+
+    trace = {
+        'type': 'candlestick',
+        'open': df.Open,
+        'high': df.High,
+        'low': df.Low,
+        'close': df.Close,
+        'x': df.index,
+        'name': tick.upper(),
+        'hoverinfo': 'x'
+    }
+
     layout = go.Layout({
-        'title': {
-            'text': optdf.Name[optdf.index == tick].sum(),
-            'font': {
-                'size': 30,
-                'color': 'grey'
-            },
-        },
         'xaxis_title': 'Time',
-        'yaxis_title': 'Price',
+        # 'yaxis_title': 'Price',
         'xaxis': {
+            # 'type': 'category',
             'showspikes': True,
             'spikemode': 'across',
             'spikesnap': 'cursor',
@@ -216,8 +558,8 @@ def callback1(tick, period, interval, n, indicator_sel, compare):
             'spikethickness': 1,
             'side': 'right'
         },
-        'width': 1400,
-        'height': 650,
+        'width': 1500,
+        'height': 700,
         'dragmode': 'pan',
         'hovermode': 'x',
         'xaxis_rangeslider_visible': False,
@@ -229,24 +571,19 @@ def callback1(tick, period, interval, n, indicator_sel, compare):
         'legend': {
             'orientation': 'h'
         },
+        'margin': {
+            'l': 80, 'r': 80, 't': 20, 'b': 80
+        },
         # 'paper_bgcolor': "#19334d",
         # 'plot_bgcolor': "#d8e6f3"
     })
 
-    trace = {
-        'type': 'candlestick',
-        'open': df.Open,
-        'high': df.High,
-        'low': df.Low,
-        'close': df.Close,
-        'x': df.index,
-        'name': tick.upper(),
-    }
     fig = go.Figure(data=trace, layout=layout)
-    if compare is not None:
+
+    if compare is not None and compare != []:
         for c in compare:
-            tickers = yf.Ticker(c)
-            dfc = tickers.history(period=period, interval=interval)
+            dfc = load_data(period, interval, c)
+            dfc = dfc - dfc['Close'].iloc[0]
             comptrace = {
                 'x': dfc.index,
                 'y': dfc.Close,
@@ -256,13 +593,30 @@ def callback1(tick, period, interval, n, indicator_sel, compare):
                     'width': 1,
                     'color': 'green'
                 },
-                'hoverinfo': 'skip'
+                'hoverinfo': 'skip',
+                'name': c.upper()
 
             }
             fig.add_trace(comptrace)
+
     if indicator_sel is not None:
+        df['Engulfing'] = talib.CDLENGULFING(df['Open'], df['High'], df['Low'], df['Close'])
         for ind in indicator_sel:
-            if ind == 'mov50':
+            if ind == 'mov20':
+                trace_mov20 = {
+                    'x': df.index,
+                    'y': talib.MA(df['Close'], timeperiod=20, matype=0),
+                    'type': 'scatter',
+                    'mode': 'lines',
+                    'line': {
+                        'width': 1,
+                        'color': 'fuchsia'
+                    },
+                    'name': 'MovAvg20',
+                    'hoverinfo': 'skip'
+                }
+                fig.add_trace(trace_mov20)
+            elif ind == 'mov50':
                 trace_mov50 = {
                     'x': df.index,
                     'y': talib.MA(df['Close'], timeperiod=50, matype=0),
@@ -276,6 +630,20 @@ def callback1(tick, period, interval, n, indicator_sel, compare):
                     'hoverinfo': 'skip'
                 }
                 fig.add_trace(trace_mov50)
+            elif ind == 'mov100':
+                trace_mov100 = {
+                    'x': df.index,
+                    'y': talib.MA(df['Close'], timeperiod=100, matype=0),
+                    'type': 'scatter',
+                    'mode': 'lines',
+                    'line': {
+                        'width': 1,
+                        'color': 'green'
+                    },
+                    'name': 'MovAvg100',
+                    'hoverinfo': 'skip'
+                }
+                fig.add_trace(trace_mov100)
             elif ind == 'mov200':
                 trace_mov200 = {
                     'x': df.index,
@@ -461,24 +829,216 @@ def callback1(tick, period, interval, n, indicator_sel, compare):
                             fillcolor="red", opacity=0.25,
                             line_width=0, line_color='red'
                         )
-    if interval != '1d':
-        fig.update_xaxes(
-            rangebreaks=[
-                dict(bounds=["sat", "mon"]),
-                dict(bounds=[15.5, 9.25], pattern='hour')
-            ]
-
-        )
-    else:
-        fig.update_xaxes(
-            rangebreaks=[
-                dict(bounds=["sat", "mon"]),
-                # dict(bounds=[15.5,9.1],pattern='hour')
-            ]
-
-        )
-
+    fig = rangebreak(fig, period, interval)
     return fig
 
 
-app.run_server(debug=True)
+@app.callback(Output(component_id='intervalinput', component_property='value'),
+              Input(component_id='periodinput', component_property='value'),
+              # prevent_initial_call=True
+              )
+def update_interval(p):
+    return period_int(p)
+
+
+@app.callback([Output('displayhover', 'children'),
+               Output('displayhover', 'style')],
+              Input('graph', 'hoverData'),
+              prevent_initial_call=True
+              )
+def display_hover_data(hoverData):
+    open = round(df.Open[df.index == hoverData["points"][0]['x']].sum(), 2)
+    high = round(df.High[df.index == hoverData["points"][0]['x']].sum(), 2)
+    low = round(df.Low[df.index == hoverData["points"][0]['x']].sum(), 2)
+    close = round(df.Close[df.index == hoverData["points"][0]['x']].sum(), 2)
+    ohlc = 'O-' + str(open) + '\t' + 'H-' + str(high) + '\t' + 'L-' + str(low) + '\t' + 'C-' + str(close)
+    if close > open:
+        color = 'forestgreen'
+    else:
+        color = 'red'
+    style = {'color': color}
+    return ohlc, style
+
+
+@app.callback([Output('tab2-graph-A', 'figure'),
+               Output('tab2-graph-B', 'figure'),
+               Output('tab2-graph-C', 'figure')],
+              [Input('tab2_tickinput', 'value'),
+               Input('tab2-periodinput-A', 'value'),
+               Input('tab2-intervalinput-A', 'value'),
+               Input('tab2-periodinput-B', 'value'),
+               Input('tab2-intervalinput-B', 'value'),
+               Input('tab2-periodinput-C', 'value'),
+               Input('tab2-intervalinput-C', 'value'),
+               Input('tab2-interval-component', 'n_intervals')],
+              # prevent_initial_call=True
+              )
+def tab2_callback(tick2, periodA, intervalA, periodB, intervalB, periodC, intervalC, n):
+    dfA = load_data(periodA, intervalA, tick2)
+    dfB = load_data(periodB, intervalB, tick2)
+    dfC = load_data(periodC, intervalC, tick2)
+    layoutA = go.Layout({
+        'xaxis_title': 'Time',
+        # 'yaxis_title': 'Price',
+        'xaxis': {
+            'showspikes': True,
+            'spikemode': 'across',
+            'spikesnap': 'cursor',
+            'spikecolor': 'black',
+            'spikethickness': 1
+        },
+        'yaxis': {
+            'showspikes': True,
+            'spikemode': 'across',
+            'spikesnap': 'cursor',
+            'spikecolor': 'black',
+            'spikethickness': 1,
+            'side': 'right'
+        },
+        'width': 750,
+        'height': 300,
+        'dragmode': 'pan',
+        'hovermode': 'x',
+        'xaxis_rangeslider_visible': False,
+        'modebar': {
+            'orientation': 'v'},
+        'uirevision': (periodA + intervalA + tick2),
+        'spikedistance': -1, 'hoverdistance': 100,
+        'template': 'plotly_white',
+        'legend': {
+            'orientation': 'h'
+        },
+        'margin': {
+            'l': 80, 'r': 80, 't': 20, 'b': 80
+        },
+    })
+
+    dataA = {
+        'type': 'candlestick',
+        'open': dfA.Open,
+        'high': dfA.High,
+        'low': dfA.Low,
+        'close': dfA.Close,
+        'x': dfA.index,
+        'name': tick2.upper(),
+        'hoverinfo': 'x'
+    }
+    figA = go.Figure(data=dataA, layout=layoutA)
+
+    layoutB = go.Layout({
+        'xaxis_title': 'Time',
+        # 'yaxis_title': 'Price',
+        'xaxis': {
+            'showspikes': True,
+            'spikemode': 'across',
+            'spikesnap': 'cursor',
+            'spikecolor': 'black',
+            'spikethickness': 1
+        },
+        'yaxis': {
+            'showspikes': True,
+            'spikemode': 'across',
+            'spikesnap': 'cursor',
+            'spikecolor': 'black',
+            'spikethickness': 1,
+            'side': 'right'
+        },
+        'width': 750,
+        'height': 300,
+        'dragmode': 'pan',
+        'hovermode': 'x',
+        'xaxis_rangeslider_visible': False,
+        'modebar': {
+            'orientation': 'v'},
+        'uirevision': (periodB + intervalB + tick2),
+        'spikedistance': -1, 'hoverdistance': 100,
+        'template': 'plotly_white',
+        'legend': {
+            'orientation': 'h'
+        },
+        'margin': {
+            'l': 80, 'r': 80, 't': 20, 'b': 80
+        },
+    })
+
+    dataB = {
+        'type': 'candlestick',
+        'open': dfB.Open,
+        'high': dfB.High,
+        'low': dfB.Low,
+        'close': dfB.Close,
+        'x': dfB.index,
+        'name': tick2.upper(),
+        'hoverinfo': 'x'
+    }
+    figB = go.Figure(data=dataB, layout=layoutB)
+
+    layoutC = go.Layout({
+        'xaxis_title': 'Time',
+        # 'yaxis_title': 'Price',
+        'xaxis': {
+            'showspikes': True,
+            'spikemode': 'across',
+            'spikesnap': 'cursor',
+            'spikecolor': 'black',
+            'spikethickness': 1
+        },
+        'yaxis': {
+            'showspikes': True,
+            'spikemode': 'across',
+            'spikesnap': 'cursor',
+            'spikecolor': 'black',
+            'spikethickness': 1,
+            'side': 'right'
+        },
+        'width': 1500,
+        'height': 350,
+        'dragmode': 'pan',
+        'hovermode': 'x',
+        'xaxis_rangeslider_visible': False,
+        'modebar': {
+            'orientation': 'v'},
+        'uirevision': (periodB + intervalB + tick2),
+        'spikedistance': -1, 'hoverdistance': 100,
+        'template': 'plotly_white',
+        'legend': {
+            'orientation': 'h'
+        },
+        'margin': {
+            'l': 80, 'r': 80, 't': 20, 'b': 80
+        },
+    })
+
+    dataC = {
+        'type': 'candlestick',
+        'open': dfC.Open,
+        'high': dfC.High,
+        'low': dfC.Low,
+        'close': dfC.Close,
+        'x': dfC.index,
+        'name': tick2.upper(),
+        'hoverinfo': 'x'
+    }
+    figC = go.Figure(data=dataC, layout=layoutC)
+
+    figA = rangebreak(figA, periodA, intervalA)
+    figB = rangebreak(figB, periodB, intervalB)
+    figC = rangebreak(figC, periodC, intervalC)
+
+    return figA, figB, figC
+
+
+@app.callback([Output('tab2-intervalinput-A', 'value'),
+               Output('tab2-intervalinput-B', 'value'),
+               Output('tab2-intervalinput-C', 'value')],
+              [Input('tab2-periodinput-A', 'value'),
+               Input('tab2-periodinput-B', 'value'),
+               Input('tab2-periodinput-C', 'value')],
+              # prevent_initial_call=True
+              )
+def tab2_update_interval(pA, pB, pC):
+    return period_int(pA), period_int(pB), period_int(pC)
+
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
