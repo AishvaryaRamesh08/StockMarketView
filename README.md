@@ -28,8 +28,9 @@ Installing Ta-Lib:
 
 
 Steps for installing the project:
-- Clone the repository
+- Clone this repository
 - Install the libraries from requirements.txt
 - execute the main.py file to run the dashboard 
-- execute the ml_randForest.py file to get the machine learning model 
+- the dashboard can be accessed on localhost http://127.0.0.1:8050/ on any browser 
+- execute the ml_randForest.py file to obtain the machine learning model 
 
