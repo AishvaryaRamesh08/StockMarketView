@@ -7,7 +7,8 @@ Web app for Stock Market built using dash and plotly in Python.
 
 Features:
 - plot NSE and BSE stocks for any time period and interval 
-- plot different financial indicators 
+- plot engulfing patterns 
+- plot financial indicators 
 - compare diferent stocks
 - Multiple time frames 
 
