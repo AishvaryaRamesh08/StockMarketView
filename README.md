@@ -2,10 +2,10 @@
 ## Visualization and Estimation of Candlestick Patterns in Stock Market 
 ### Website - https://stockmarketview.herokuapp.com/
 
-Dashboard for Stock Market built using dash and plotly in Python 
+Web app for Stock Market built using dash and plotly in Python. 
+ 
 
-
-Features of the dashboard:
+Features:
 - plot NSE and BSE stocks for any time period and interval 
 - plot different financial indicators 
 - compare diferent stocks
@@ -30,7 +30,8 @@ Installing Ta-Lib:
 Steps for installing the project:
 - Clone this repository
 - Install the libraries from requirements.txt
-- execute the main.py file to run the dashboard 
-- the dashboard can be accessed on localhost http://127.0.0.1:8050/ on any browser 
+- execute the main.py file to run the visualization dash app
+- the dash app can be accessed on localhost http://127.0.0.1:8050/ on any browser 
 - execute the ml_randForest.py file to obtain the machine learning model 
 
+The Dash app is deployed via the heroku platform
